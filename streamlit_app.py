@@ -1,4 +1,3 @@
-
 import streamlit as st
 import time
 import plotly.graph_objects as go
@@ -94,11 +93,7 @@ with left_col:
 with right_col:
     st.title("🎈 冒泡排序仿真")
     st.subheader("输入数字（英文逗号分隔）：")
-    user_input = st.text_input(
-        "输入数字",
-        value="5,3,8,4,2",
-        label_visibility="collapsed"  # 隐藏 label，界面不变
-    )
+    user_input = st.text_input("", value="5,3,8,4,2")
 
     try:
         arr = [int(x.strip()) for x in user_input.split(",")]
@@ -150,16 +145,10 @@ with right_col:
             st.session_state.idx=0
             st.session_state.playing=False
     with c4:
-        speed = st.slider(
-            "速度",
-            min_value=0.05,
-            max_value=0.3,
-            value=0.12,
-            label_visibility="collapsed"
-        )
+        speed = st.slider("速度", 0.05, 0.3, 0.12)
 
     st.markdown("---")
-    # 动画
+    # 🔥 关键：创建唯一占位符，彻底解决闪烁
     ani_plt = st.empty()
 
     st.markdown("---")
@@ -224,6 +213,7 @@ with right_col:
         )
         return fig
 
+    # ====================== 🔥 无闪烁渲染核心 ======================
     if st.session_state.playing and idx <= max_idx:
         step = steps[idx]
         mode, i, j, arr_cur, eg, rnd, cmp, swp = step[:8]
@@ -233,7 +223,6 @@ with right_col:
         sim_compare.metric("比较次数", cmp)
         sim_swap.metric("交换次数", swp)
 
-        # 报告显示在左侧下方
         report_box.markdown(f"""
         初始数组：`{st.session_state.last_arr}`<br>
         当前数组：`{arr_cur}`<br>
@@ -241,28 +230,35 @@ with right_col:
         时间复杂度：O(n²)
         """, unsafe_allow_html=True)
 
+        # 🔥 只在这里更新，不重建组件 → 完全不闪
         fig = draw_frame(arr_cur, eg, mode, i, j, progress)
         ani_plt.plotly_chart(fig, use_container_width=True)
 
+        # 提示文字
         if mode == "compare":
             tip_text.info(f"比较：{arr_cur[i]} ↔ {arr_cur[j]}")
-            time.sleep(speed * 2)
         elif mode == "flying":
             tip_text.warning("交换中...")
-            time.sleep(speed)
         elif mode == "no_swap":
             tip_text.success("顺序正确")
-            time.sleep(speed * 1.2)
         elif mode == "round_end":
             tip_text.success("本轮完成")
-            time.sleep(speed * 1.5)
         elif mode == "done":
             tip_text.success("🎉 排序完成！")
             st.session_state.playing = False
 
-        st.session_state.idx += 1
-        if st.session_state.idx > max_idx:
-            st.session_state.idx = max_idx
+        # 延时
+        if mode == "compare":
+            time.sleep(speed * 2)
+        elif mode == "flying":
+            time.sleep(speed)
+        elif mode == "no_swap":
+            time.sleep(speed * 1.2)
+        elif mode == "round_end":
+            time.sleep(speed * 1.5)
+
+        # 步进
+        st.session_state.idx = min(idx + 1, max_idx)
         st.rerun()
 
     else:
