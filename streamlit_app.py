@@ -59,7 +59,7 @@ with left_col:
 
 # ====================== 右侧 ======================
 with right_col:
-    st.title("🎈 冒泡排序仿真（流畅无闪版）")
+    st.title("🎈 冒泡排序仿真")
     st.subheader("输入数字（英文逗号分隔）：")
     # ✅ 修复空 label 警告
     user_input = st.text_input(
