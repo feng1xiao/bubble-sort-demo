@@ -18,12 +18,13 @@ st.markdown("""
     .stTextInput input { height: 48px !important; font-size: 20px !important; }
     .stSlider label { font-size: 19px !important; }
     .stButton button { height: 46px !important; font-size: 18px !important; }
+    /* 🔥 恢复你原来的背景 */
     .stApp { background: linear-gradient(135deg, #f0f9ff 0%, #dfe7fd 100%); }
     hr { margin: 0.7rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-left_col, right_col = st.columns([1.1, 1.3])
+left_col, right_col = cols = st.columns([1.1, 1.3])
 
 # ====================== 左侧 ======================
 with left_col:
@@ -61,7 +62,6 @@ with left_col:
 with right_col:
     st.title("🎈 冒泡排序仿真")
     st.subheader("输入数字（英文逗号分隔）：")
-    # ✅ 修复空 label 警告
     user_input = st.text_input(
         "输入数字",
         value="5,3,8,4,2",
@@ -76,7 +76,7 @@ with right_col:
     if n < 2:
         st.stop()
 
-    # 生成步骤（不变）
+    # 生成步骤
     def generate_steps(arr):
         a = arr.copy()
         steps = []
@@ -108,7 +108,6 @@ with right_col:
     max_idx = len(steps)-1
     idx = st.session_state.idx
 
-    # 控制按钮
     c1,c2,c3,c4 = st.columns(4)
     with c1:
         if st.button("▶ 播放"): st.session_state.playing=True
@@ -119,7 +118,6 @@ with right_col:
             st.session_state.idx=0
             st.session_state.playing=False
     with c4:
-        # ✅ 修复空 label 警告
         speed = st.slider(
             "速度",
             min_value=0.03,
@@ -129,7 +127,6 @@ with right_col:
         )
 
     st.markdown("---")
-    # 🔥 唯一占位符
     ani_plt = st.empty()
 
     st.markdown("---")
@@ -141,51 +138,45 @@ with right_col:
     tip_text = st.empty()
 
     # ======================
-    # 🔥 核心：只建1次Figure，原地更新
+    # ✅ 每次都重新创建图表，自动适配数字范围
     # ======================
-    def init_figure(arr_initial):
+    def create_figure(arr_data):
+        y_min = min(arr_data) - 3
+        y_max = max(arr_data) + 3
+
         fig = go.Figure()
-        # 气泡（底层）
         fig.add_trace(go.Scatter(
-            x=list(range(n)), y=arr_initial, mode="markers",
-            marker=dict(size=72, color=["#EEEEEE"]*n),
+            x=list(range(len(arr_data))), y=arr_data, mode="markers",
+            marker=dict(size=72, color="#EEEEEE"),
             showlegend=False
         ))
-        # 数字文本（上层）
         fig.add_trace(go.Scatter(
-            x=list(range(n)), y=arr_initial, mode="text",
-            text=[str(v) for v in arr_initial],
+            x=list(range(len(arr_data))), y=arr_data, mode="text",
+            text=[str(v) for v in arr_data],
             textfont=dict(size=28, color="black"),
             showlegend=False
         ))
-        # 交换浮动文本（顶层，初始隐藏）
         fig.add_trace(go.Scatter(
             x=[None], y=[None], mode="text",
             textfont=dict(size=32, color="red"),
             showlegend=False
         ))
-        # 布局固定
         fig.update_layout(
-            height=360,
+            height=380,
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             xaxis=dict(tickvals=list(range(n))),
-            yaxis=dict(visible=False, range=[min(arr)-2, max(arr)+3]),
-            margin=dict(l=10,r=10,t=10,b=10),
-            # 🔥 关键：平滑过渡
+            yaxis=dict(visible=False, range=[y_min, y_max]),
+            margin=dict(l=10, r=10, t=10, b=10),
             transition=dict(duration=100, easing="cubic-in-out")
         )
         return fig
 
-    # 初始化一次图
-    if "fig" not in st.session_state or st.session_state.get("last_arr") != arr:
-        st.session_state.fig = init_figure(arr)
-    fig = st.session_state.fig
-
     # ======================
-    # 🔥 单帧更新（不重建）
+    # 更新帧 + 自动适配范围
     # ======================
     def update_frame(arr_cur, ever_green, mode, i, j, progress=0):
+        fig = create_figure(arr_cur)
         n = len(arr_cur)
         colors = []
         for x in range(n):
@@ -200,26 +191,17 @@ with right_col:
             else:
                 colors.append("#EEEEEE")
 
-        # 1. 更新气泡颜色、位置
-        fig.data[0].x = list(range(n))
-        fig.data[0].y = arr_cur
         fig.data[0].marker.color = colors
-
-        # 2. 更新静态文字
-        fig.data[1].x = list(range(n))
-        fig.data[1].y = arr_cur
         fig.data[1].text = [str(v) for v in arr_cur]
 
-        # 3. 交换动画：浮动红文（流畅）
         if mode == "flying":
             val_i = arr_cur[i]
             val_j = arr_cur[j]
             y_i = arr_cur[i]
             y_j = arr_cur[j]
             cx = (i + j) / 2
-            cy = max(y_i, y_j) + 1.0
+            cy = max(y_i, y_j) + 2
             t = progress
-            # 贝塞尔曲线
             x1 = (1-t)**2*i + 2*(1-t)*t*cx + t**2*j
             fy1 = (1-t)**2*y_i + 2*(1-t)*t*cy + t**2*y_j
             x2 = (1-t)**2*j + 2*(1-t)*t*cx + t**2*i
@@ -227,28 +209,20 @@ with right_col:
             fig.data[2].x = [x1, x2]
             fig.data[2].y = [fy1, fy2]
             fig.data[2].text = [str(val_i), str(val_j)]
-        else:
-            # 隐藏浮动文字
-            fig.data[2].x = [None]
-            fig.data[2].y = [None]
-            fig.data[2].text = []
-
         return fig
 
     # ======================
-    # 主循环（无闪）
+    # 主循环
     # ======================
     if st.session_state.playing and idx <= max_idx:
         step = steps[idx]
         mode, i, j, arr_cur, eg, rnd, cmp, swp = step[:8]
         progress = step[8] if mode == "flying" else 0
 
-        # 数据面板
         sim_round.metric("轮次", rnd)
         sim_compare.metric("比较", cmp)
         sim_swap.metric("交换", swp)
 
-        # 报告
         report_box.markdown(f"""
         初始：`{st.session_state.last_arr}`<br>
         当前：`{arr_cur}`<br>
@@ -256,11 +230,9 @@ with right_col:
         时间复杂度：O(n²)
         """, unsafe_allow_html=True)
 
-        # 🔥 原地更新图（不重建）
         fig = update_frame(arr_cur, eg, mode, i, j, progress)
         ani_plt.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-        # 提示
         if mode == "compare":
             tip_text.info(f"比较：{arr_cur[i]} ↔ {arr_cur[j]}")
         elif mode == "flying":
@@ -273,22 +245,16 @@ with right_col:
             tip_text.success("🎉 排序完成！")
             st.session_state.playing = False
 
-        # 延时（更流畅）
         delay = speed
-        if mode == "compare":
-            delay *= 2.5
-        elif mode == "no_swap":
-            delay *= 1.5
-        elif mode == "round_end":
-            delay *= 2.0
+        if mode == "compare": delay *= 2.5
+        elif mode == "no_swap": delay *= 1.5
+        elif mode == "round_end": delay *= 2.0
         time.sleep(delay)
 
-        # 步进
         st.session_state.idx = min(idx + 1, max_idx)
         st.rerun()
 
     else:
-        # 静止帧
         step = steps[idx]
         mode, i, j, arr_cur, eg, rnd, cmp, swp = step[:8]
         sim_round.metric("轮次", rnd)
